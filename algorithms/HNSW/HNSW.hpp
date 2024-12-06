@@ -29,6 +29,7 @@
 #include <parlay/random.h>
 #include "debug.hpp"
 #include "../utils/beamSearch.h"
+// #include "dist.hpp"
 #define DEBUG_OUTPUT 0
 #if DEBUG_OUTPUT
 #define debug_output(...) fprintf(stderr, __VA_ARGS__)
@@ -51,6 +52,7 @@ struct point{
 template<typename U, template<typename> class Allocator=std::allocator>
 class HNSW
 {
+	// using T = typename U::type_point;
 	using T = typename U::type_point;
 	typedef uint32_t node_id;
 public:
@@ -168,17 +170,6 @@ public:
 		return node_pool[id];
 	}
 
-/*
-	static void add_connection(parlay::sequence<node_id> &neighbors, node &u, uint32_t level)
-	{
-		for(auto pv : neighbors)
-		{
-			assert(&u!=pv);
-			pv->neighbors[level].push_back(&u);
-			u.neighbors[level].push_back(pv);
-		}
-	}
-*/
 	class dist_evaluator{
 		using point_t = T;
 		using dist_t = float;
@@ -595,37 +586,6 @@ public:
 		});
 		return parlay::reduce(cnt_each, parlay::maxm<size_t>());
 	}
-/*
-	void debug_output_graph(uint32_t l)
-	{
-		// return;
-		debug_output("Printing the graph at level %u\n", l);
-		auto node_exist = parlay::pack(
-			node_pool,
-			parlay::delayed_seq<bool>(node_pool.size(),[&](size_t i){
-				return node_pool[i]->level>=l;
-			})
-		);
-		const auto num_vertices = node_exist.size();
-		const auto num_edges = parlay::reduce(
-			parlay::delayed_seq<uint64_t>(node_exist.size(),[&](size_t i){
-				return node_exist[i]->neighbors[l].size();
-			}),
-			parlay::addm<uint64_t>{}
-		);
-		debug_output("# vertices: %lu, # edges: %llu\n", num_vertices, num_edges);
-
-		for(node_id pu : node_exist)
-		{
-			debug_output("node_id: %u\n", U::get_id(get_node(pu).data));
-			// if(!res[i]) continue;
-			debug_output("\tneighbors:");
-			for(node_id pv : neighbourhood(get_node(pu),l))
-				debug_output(" %u", U::get_id(get_node(pv).data));
-			debug_output("\n");
-		}
-	}
-*/
 };
 
 template<typename U, template<typename> class Allocator>
@@ -682,12 +642,7 @@ HNSW<U,Allocator>::HNSW(const std::string &filename_model, G getter)
 	read(code_U);
 	read(size_node);
 	fprintf(stderr, "U type loading %s\n", typeid(U).name());
-	// if((typeid(U).hash_code()^sizeof(U))!=code_U)
-		// throw std::runtime_error("Inconsistent type `U`");
-	// if(sizeof(node)!=size_node)
-		// throw std::runtime_error("Inconsistent type `node`");
 
-	// read parameter configuration
 	read(dim);
 	read(m_l);
 	read(m);
@@ -741,6 +696,30 @@ HNSW<U,Allocator>::HNSW(const std::string &filename_model, G getter)
 		read(id_u);
 		entrance.push_back(id_u);
 	}
+
+
+// 	template<typename indexType, typename Point, typename PointRange,
+//          typename QPoint, typename QPointRange, class GT>
+// std::pair<std::pair<parlay::sequence<std::pair<indexType, float>>,
+//                     parlay::sequence<std::pair<indexType, float>>>,
+//           size_t>
+// filtered_beam_search1(const GT &G,
+//                      const Point p,  const PointRange &Points,
+//                      const QPoint qp, const QPointRange &Q_Points,
+//                      const parlay::sequence<indexType> starting_points,
+//                      const QueryParams &QP,
+//                      bool use_filtering = false
+//                      );
+
+
+// template<typename indexType, typename Point, typename PointRange, class GT>
+// std::pair<std::pair<parlay::sequence<std::pair<indexType, float>>, parlay::sequence<std::pair<indexType, float>>>, size_t>
+// beam_search_impl1(Point p, GT &G, PointRange &Points,
+//                  parlay::sequence<indexType> starting_points, QueryParams &QP) {
+//   return filtered_beam_search1(G, p, Points, p, Points, starting_points, QP, false);
+// }
+
+	
 }
 
 template<typename U, template<typename> class Allocator>
@@ -756,9 +735,15 @@ HNSW<U,Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_, uint32_
 
 	std::random_device rd;
 	auto perm = parlay::random_permutation<uint32_t>(n, rd());
+
+	// std::vector<descr_l2<float>> test1{};
+
+	// auto rand_seq = parlay::delayed_seq<descr_l2<float>>(n, [&](uint32_t i){
+	// 	return *(test1.begin() + i);
+	// });
+
 	auto rand_seq = parlay::delayed_seq<T>(n, [&](uint32_t i){
-		//return *(begin+perm[i]);
-		return *(begin+i);
+		return *(begin + i);
 	});
 
 	const auto level_ep = get_level_random();
@@ -969,7 +954,7 @@ void HNSW<U,Allocator>::insert(Iter begin, Iter end, bool from_blank)
 				for(size_t k=0; k<nbh_v.size(); ++k)
 					candidates[k] = dist{U::distance(get_node(nbh_v[k]).data,get_node(pv).data,dim), nbh_v[k]};
 				for(size_t k=0; k<nbh_v_add.size(); ++k)
-					candidates[k+nbh_v.size()] = dist{U::distance(get_node(nbh_v_add[k]).data,get_node(pv).data,dim), nbh_v_add[k]};
+					candidates[k+nbh_v.size()] = dist{U::distance(get_node(nbh_v_add[k]).data, get_node(pv).data, dim), nbh_v_add[k]};
 
 				std::sort(candidates.begin(), candidates.end(), farthest());
 
@@ -1005,12 +990,6 @@ void HNSW<U,Allocator>::insert(Iter begin, Iter end, bool from_blank)
 		entrance.push_back(node_highest);
 		debug_output("New entrance [%u] at lev %u\n", U::get_id(get_node(node_highest).data), get_node(node_highest).level);
 	}
-
-	// and add new nodes to the pool
-	/*
-	if(from_blank)
-	node_pool.insert(node_pool.end(), node_new.get(), node_new.get()+size_batch);
-	*/
 }
 
 template<class Conn, class G, class D, class Seq>
@@ -1097,16 +1076,168 @@ auto HNSW<U,Allocator>::search_layer(const node &u, const parlay::sequence<node_
 	auto points = parlay::delayed_seq<const T&>(node_pool.size(), [&](size_t i) -> const T&{
 		return node_pool[i].data;
 	});
-	auto res = beam_search_impl<node_id>(u.data, g, points, eps, QP);
+
+	bool use_filtering = false;
+
+	using dtype = float;
+	using indexType = uint32_t;
+  using id_dist = std::pair<indexType, dtype>;
+	int beamSize = QP.beamSize;
+
+	if (eps.size() == 0) {
+    std::cout << "beam search expects at least one start point" << std::endl;
+    abort();
+  }
+
+	using distanceType = float;
+  auto less = [&](id_dist a, id_dist b) {
+    return a.second < b.second || (a.second == b.second && a.first < b.first);
+  };
+
+  int bits = std::max<int>(10, std::ceil(std::log2(beamSize * beamSize)) - 2);
+  std::vector<indexType> hash_filter(1 << bits, -1);
+  auto has_been_seen = [&](indexType a) -> bool {
+    int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
+    if (hash_filter[loc] == a) return true;
+    hash_filter[loc] = a;
+    return false;
+  };
+
+  std::vector<id_dist> frontier;
+  frontier.reserve(beamSize);
+  for (auto q : eps) {
+    frontier.push_back(id_dist(q, U::distance(get_node(q).data, u.data, dim)));
+    has_been_seen(q);
+  }
+  std::sort(frontier.begin(), frontier.end(), less);
+
+  std::vector<id_dist> unvisited_frontier(beamSize);
+  for (int i=0; i < frontier.size(); i++)
+    unvisited_frontier[i] = frontier[i];
+
+  std::vector<id_dist> visited;
+  visited.reserve(2 * beamSize);
+
+  size_t dist_cmps = eps.size();
+  size_t full_dist_cmps = eps.size();
+  int remain = frontier.size();
+  int num_visited = 0;
+
+  std::vector<id_dist> new_frontier(2 * std::max<size_t>(beamSize, eps.size()) +
+                                    g.max_degree());
+  std::vector<id_dist> candidates;
+  candidates.reserve(g.max_degree() + beamSize);
+  std::vector<indexType> filtered;
+  filtered.reserve(g.max_degree());
+  std::vector<indexType> pruned;
+  pruned.reserve(g.max_degree());
+
+  dtype filter_threshold_sum = 0.0;
+  int filter_threshold_count = 0;
+  dtype filter_threshold;
+
+  int offset = 0;
+
+	while (remain > offset && num_visited < QP.limit) {
+		id_dist current = unvisited_frontier[offset];
+    g[current.first].prefetch();
+
+    auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
+    visited.insert(position, current);
+    num_visited++;
+    bool frontier_full = frontier.size() == beamSize;
+
+		if (use_filtering && frontier_full) {
+      filter_threshold_sum += U::distance(get_node(frontier.back().first).data, u.data, dim);
+      filter_threshold_count++;
+      filter_threshold = filter_threshold_sum / filter_threshold_count;
+    }
+
+    pruned.clear();
+    filtered.clear();
+    long num_elts = std::min<long>(g[current.first].size(), QP.degree_limit);
+    for (indexType i=0; i<num_elts; i++) {
+      auto a = g[current.first][i];
+      if (has_been_seen(a)) continue;  // skip if already seen
+      // points[a].prefetch();
+      pruned.push_back(a);
+    }
+    dist_cmps += pruned.size();
+
+		if (use_filtering && frontier_full) {
+      for (auto a : pruned) {
+        if (frontier_full && U::distance(get_node(a).data, u.data, dim) >= filter_threshold) continue;
+        filtered.push_back(a);
+        // points[a].prefetch();
+      }
+    } else std::swap(filtered, pruned);
+
+		distanceType cutoff = (frontier_full
+												? frontier[frontier.size() - 1].second
+												: (distanceType)std::numeric_limits<int>::max());
+    for (auto a : filtered) {
+      distanceType dist = U::distance(get_node(a).data, u.data, dim);
+      full_dist_cmps++;
+      // skip if frontier not full and distance too large
+      if (dist >= cutoff) continue;
+      candidates.push_back(std::pair{a, dist});
+    }
+
+    if (candidates.size() == 0 || 
+        (QP.limit >= 2 * beamSize &&
+         candidates.size() < beamSize/8 &&
+         offset + 1 < remain)) {
+      offset++;
+      continue;
+    }
+    offset = 0;
+
+    std::sort(candidates.begin(), candidates.end(), less);
+    auto candidates_end = std::unique(candidates.begin(), candidates.end(),
+                                      [] (auto a, auto b) {return a.first == b.first;});
+
+    auto new_frontier_size =
+      std::set_union(frontier.begin(), frontier.end(), candidates.begin(),
+                     candidates_end, new_frontier.begin(), less) -
+      new_frontier.begin();
+    candidates.clear();
+
+		new_frontier_size = std::min<size_t>(beamSize, new_frontier_size);
+
+    if (QP.k > 0 && new_frontier_size > QP.k)
+      new_frontier_size = std::max<indexType>(
+        (std::upper_bound(new_frontier.begin(),
+                          new_frontier.begin() + new_frontier_size,
+                          std::pair{0, QP.cut * new_frontier[QP.k].second}, less) -
+         new_frontier.begin()), frontier.size());
+
+		frontier.clear();
+    for (indexType i = 0; i < new_frontier_size; i++)
+      frontier.push_back(new_frontier[i]);
+
+    remain = (std::set_difference(frontier.begin(),
+                                  frontier.begin() + std::min<long>(frontier.size(), QP.beamSize),
+                                  visited.begin(),
+                                  visited.end(),
+                                  unvisited_frontier.begin(), less) -
+              unvisited_frontier.begin());
+	}
+
+	auto res = std::make_pair(std::make_pair(parlay::to_sequence(frontier),
+                                       parlay::to_sequence(visited)),
+                        full_dist_cmps);
+
 	const auto &pairElts = std::get<0>(res);
-	const auto &frontier = std::get<0>(pairElts);
+	const auto &frontiers = std::get<0>(pairElts);
 	if(ctrl.count_cmps)
 		*ctrl.count_cmps.value() += std::get<1>(res);
-	return parlay::tabulate(frontier.size(), [&](size_t i){
-		const auto &f = frontier[i];
+	return parlay::tabulate(frontiers.size(), [&](size_t i){
+		const auto &f = frontiers[i];
 		return dist{f.second, f.first};
 	});
 }
+
+
 
 template<typename U, template<typename> class Allocator>
 auto HNSW<U,Allocator>::search_layer_bak(const node &u, const parlay::sequence<node_id> &eps, uint32_t ef, uint32_t l_c, search_control ctrl) const
@@ -1688,4 +1819,3 @@ void HNSW<U,Allocator>::save(const std::string &filename_model) const
 } // namespace HNSW
 
 #endif // _HNSW_HPP
-

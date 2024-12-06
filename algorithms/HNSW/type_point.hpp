@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <any>
-#include "benchUtils.h"
+#include "../bench/benchUtils.h"
 
 #ifdef SUPPORT_HDF5
 #include "h5_ops.hpp"

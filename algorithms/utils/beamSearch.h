@@ -21,8 +21,8 @@ namespace parlayANN {
 // main beam search
 template<typename indexType, typename Point, typename PointRange,
          typename QPoint, typename QPointRange, class GT>
-std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
-                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
+std::pair<std::pair<parlay::sequence<std::pair<indexType, float>>,
+                    parlay::sequence<std::pair<indexType, float>>>,
           size_t>
 filtered_beam_search(const GT &G,
                      const Point p,  const PointRange &Points,
@@ -31,7 +31,7 @@ filtered_beam_search(const GT &G,
                      const QueryParams &QP,
                      bool use_filtering = false
                      ) {
-  using dtype = typename Point::distanceType;
+  using dtype = float;
   using id_dist = std::pair<indexType, dtype>;
   int beamSize = QP.beamSize;
 
@@ -42,7 +42,7 @@ filtered_beam_search(const GT &G,
 
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
-  using distanceType = typename Point::distanceType;
+  using distanceType = float;
   auto less = [&](id_dist a, id_dist b) {
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
@@ -224,7 +224,7 @@ beam_search(const Point p, const Graph<indexType> &G, const PointRange &Points,
 
 // backward compatibility (for hnsw)
 template<typename indexType, typename Point, typename PointRange, class GT>
-std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, float>>, parlay::sequence<std::pair<indexType, float>>>, size_t>
 beam_search_impl(Point p, GT &G, PointRange &Points,
                  parlay::sequence<indexType> starting_points, QueryParams &QP) {
   return filtered_beam_search(G, p, Points, p, Points, starting_points, QP, false);
