@@ -51,25 +51,24 @@ std::vector<descr_l2<float>::type_point> generate_random_points(size_t num_point
 {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dist(-100.0f, 100.0f);  // 坐标值范围
+    std::uniform_real_distribution<float> dist(0.0f, 100.0f);  
 
     std::vector<descr_l2<float>::type_point> points;
     points.reserve(num_points);
 
     for (size_t i = 0; i < num_points; ++i)
     {
-        // 创建一个新的点的坐标
         std::vector<float> coords(dimensions);
         for (size_t j = 0; j < dimensions; ++j)
         {
             coords[j] = dist(gen);
+            std::cout << coords[j] << " ";
         }
+        std::cout << std::endl;
 
-        // 创建point对象并加入到vector中
         point<float> p(i, coords.data());
         points.push_back(p);
     }
-
     return points;
 }
 
@@ -98,7 +97,13 @@ int main(int argc, char* argv[]) {
   auto res = hnsw->search(point1, 10, 50, ctrl);
   std::cout << "-----------" << std::endl;
   std::cout << res.size() << std::endl;
-  for (auto r : res)
-    std::cout << r.first << " " << r.second << std::endl;
+  for (auto r : res) {
+    spdlog::info("id {} dist {}", r.first, r.second);
+  }
+  std::cout << "********" << std::endl;
+  auto res1 = hnsw->search_exact(point1, 10);
+  for (auto r : res1) {
+    spdlog::info("id {} dist {}", r.first, r.second);
+  }
   return 0;
 }

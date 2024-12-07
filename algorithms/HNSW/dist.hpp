@@ -5,6 +5,7 @@
 
 #include "../utils/NSGDist.h"
 #include "type_point.hpp"
+#include <spdlog/spdlog.h>
 
 template <typename T>
 class descr_ang {
@@ -75,8 +76,12 @@ class descr_l2 {
     } else {
       const auto *uc = u.coord, *vc = v.coord;
       efanna2e::DistanceL2 distfunc;
-      return distfunc.compare(uc, vc, dim);
+      auto dist = distfunc.compare(uc, vc, dim);
+      spdlog::info("&&&&&&&&& {}", dist);
+      return dist;
+      // return distfunc.compare(uc, vc, dim);
     }
+    std::cout << std::endl;
   }
 
   static auto get_id(const type_point &u) { return u.id; }

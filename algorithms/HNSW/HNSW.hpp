@@ -59,34 +59,20 @@ class HNSW {
   typedef uint32_t node_id;
 
  public:
-  /*
-          Construct from the vectors [begin, end).
-          std::iterator_trait<Iter>::value_type ought to be convertible to T
-          dim: 				vector dimension
-          m_l: 				control the # of levels (larger m_l leads
-     to more layer) m: 					max degree
-          ef_construction:	beam size during the construction
-          alpha:				parameter of the heuristic (similar to
-     the one in vamana) batch_base: 		growth rate of the batch size
-     (discarded because of two passes)
-  */
+
   template <typename Iter>
-  HNSW(Iter begin, Iter end, uint32_t dim, float m_l = 1, uint32_t m = 100,
+  HNSW(Iter begin, Iter end, uint32_t dim, float m_l = 16, uint32_t m = 16,
        uint32_t ef_construction = 50, float alpha = 5, float batch_base = 2);
 
-  /*
-          Construct from the saved model
-          getter(i) returns the actual data (convertible to type T) of the
-     vector with id i
-  */
   template <typename G>
   HNSW(const std::string &filename_model, G getter);
 
   parlay::sequence<std::pair<uint32_t, float>> search(
       const T &q, uint32_t k, uint32_t ef, const search_control &ctrl = {});
-  // parlay::sequence<std::tuple<uint32_t,uint32_t,float>> search_ex(const T &q,
-  // uint32_t k, uint32_t ef, uint64_t verbose=0); save the current model to a
-  // file
+
+  parlay::sequence<std::pair<uint32_t, float>> search_exact(
+    const T &q, uint32_t k);
+
   void save(const std::string &filename_model) const;
 
  public:
@@ -124,14 +110,6 @@ class HNSW {
     }
   };
 
-  /*
-          struct cmp_id{
-                  constexpr bool operator()(const dist &lhs, const dist &rhs)
-     const{ return
-     U::get_id(get_node(lhs.u).data)<U::get_id(get_node(rhs.u).data);
-                  }
-          };
-  */
   parlay::sequence<node_id> entrance;  // To init
   // auto m, max_m0, m_L; // To init
   uint32_t dim;
@@ -394,24 +372,7 @@ class HNSW {
     using conn = dist;
 
     Seq workset = std::forward<Seq_>(cand);
-    /*
-    if(ctrl.extend_nbh)
-    {
-            const auto &g = ctrl.graph;
-            std::unordered_set<nid_t> cand_ext;
-            for(const conn &c : workset)
-            {
-                    cand_ext.insert(c.u);
-                    for(nid_t pv : g.get_edges(c.u))
-                            cand_ext.insert(pv);
-            }
 
-            workset.reserve(workset.size()+cand_ext.size());
-            for(nid_t pc : cand_ext)
-                    workset.push_back({f_dist(g.get_node(pc).get_coord()), pc});
-            cand_ext.clear();
-    }
-    */
     parlay::sort_inplace(workset);
 
     Seq res, pruned;
@@ -468,8 +429,7 @@ class HNSW {
     return res;
   }
 
-  // auto search_layer(const node &u, const parlay::sequence<node_id> &eps,
-  // uint32_t ef, uint32_t l_c, uint64_t verbose=0) const; // To static
+  //search_layer(u, eps_u, 1, l);  
   auto search_layer(const node &u, const parlay::sequence<node_id> &eps,
                     uint32_t ef, uint32_t l_c,
                     search_control ctrl = {}) const;  // To static
@@ -637,29 +597,6 @@ HNSW<U, Allocator>::HNSW(const std::string &filename_model, G getter) {
     read(id_u);
     entrance.push_back(id_u);
   }
-
-  // 	template<typename indexType, typename Point, typename PointRange,
-  //          typename QPoint, typename QPointRange, class GT>
-  // std::pair<std::pair<parlay::sequence<std::pair<indexType, float>>,
-  //                     parlay::sequence<std::pair<indexType, float>>>,
-  //           size_t>
-  // filtered_beam_search1(const GT &G,
-  //                      const Point p,  const PointRange &Points,
-  //                      const QPoint qp, const QPointRange &Q_Points,
-  //                      const parlay::sequence<indexType> starting_points,
-  //                      const QueryParams &QP,
-  //                      bool use_filtering = false
-  //                      );
-
-  // template<typename indexType, typename Point, typename PointRange, class GT>
-  // std::pair<std::pair<parlay::sequence<std::pair<indexType, float>>,
-  // parlay::sequence<std::pair<indexType, float>>>, size_t>
-  // beam_search_impl1(Point p, GT &G, PointRange &Points,
-  //                  parlay::sequence<indexType> starting_points, QueryParams
-  //                  &QP) {
-  //   return filtered_beam_search1(G, p, Points, p, Points, starting_points,
-  //   QP, false);
-  // }
 }
 
 template <typename U, template <typename> class Allocator>
@@ -681,26 +618,13 @@ HNSW<U, Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_,
 
   if (n == 0) return;
 
-  std::random_device rd;
-  auto perm = parlay::random_permutation<uint32_t>(n, rd());
-
-  // std::vector<descr_l2<float>> test1{};
-
-  // auto rand_seq = parlay::delayed_seq<descr_l2<float>>(n, [&](uint32_t i){
-  // 	return *(test1.begin() + i);
-  // });
-
-  auto rand_seq =
-      parlay::delayed_seq<T>(n, [&](uint32_t i) { return *(begin + i); });
+  auto seq = parlay::delayed_seq<T>(n, [&](uint32_t i) { return *(begin + i); });
 
   const auto level_ep = get_level_random();
-  // node *entrance_init = allocator.allocate(1);
-  // node_pool.push_back(entrance_init);
   node_pool.resize(1);
   node_id entrance_init = 0;
   new (&get_node(entrance_init)) node{
-      level_ep, new parlay::sequence<node_id>[level_ep + 1], *rand_seq.begin()
-      /*anything else*/
+      level_ep, new parlay::sequence<node_id>[level_ep + 1], *seq.begin()
   };
   entrance.push_back(entrance_init);
 
@@ -710,50 +634,16 @@ HNSW<U, Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_,
     batch_begin = batch_end;
     batch_end = std::min({n, (uint32_t)std::ceil(batch_begin * batch_base) + 1,
                           batch_begin + size_limit});
-    /*
-    if(batch_end>batch_begin+100)
-            batch_end = batch_begin+100;
-    */
-    // batch_end = batch_begin+1;
 
-    insert(rand_seq.begin() + batch_begin, rand_seq.begin() + batch_end, true);
-    // insert(rand_seq.begin()+batch_begin, rand_seq.begin()+batch_end, false);
+    insert(seq.begin() + batch_begin, seq.begin() + batch_end, true);
 
     if (batch_end > n * (progress + 0.05)) {
       progress = float(batch_end) / n;
-      fprintf(stderr, "Built: %3.2f%%\n", progress * 100);
-      // fprintf(stderr, "# visited: %lu\n",
-      // parlay::reduce(total_visited,parlay::addm<size_t>{})); fprintf(stderr,
-      // "# eval: %lu\n", parlay::reduce(total_eval,parlay::addm<size_t>{}));
-      // fprintf(stderr, "size of C: %lu\n",
-      // parlay::reduce(total_size_C,parlay::addm<size_t>{}));
+      spdlog::info("Built: {}%", progress * 100);
     }
   }
 
-  // fprintf(stderr, "# visited: %lu\n",
-  // parlay::reduce(total_visited,parlay::addm<size_t>{})); fprintf(stderr, "#
-  // eval: %lu\n", parlay::reduce(total_eval,parlay::addm<size_t>{}));
-  // fprintf(stderr, "size of C: %lu\n",
-  // parlay::reduce(total_size_C,parlay::addm<size_t>{}));
-  fprintf(stderr, "Index built\n");
-
-#if 0
-		for(const auto *pu : node_pool)
-		{
-			fprintf(stderr, "[%u] (%.2f,%.2f)\n", U::get_id(get_node(pu).data), get_node(pu).data[0], get_node(pu).data[1]);
-			for(int32_t l=pu->level; l>=0; --l)
-			{
-				fprintf(stderr, "\tlv. %d:", l);
-				for(const auto *k : pu->neighbors[l])
-					fprintf(stderr, " %u", U::get_id(get_node(k).data));
-				fputs("\n", stderr);
-			}
-		}
-#endif
-  /*
-          for(uint32_t l=0; l<entrance[0]->level; ++l)
-                  debug_output_graph(l);
-  */
+  spdlog::info("Index built");
 }
 
 template <typename U, template <typename> class Allocator>
@@ -764,22 +654,18 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
   auto node_new = std::make_unique<node_id[]>(size_batch);
   auto nbh_new = std::make_unique<parlay::sequence<node_id>[]>(size_batch);
   auto eps = std::make_unique<parlay::sequence<node_id>[]>(size_batch);
-  // const float factor_m = from_blank? 0.5: 1;
+
   const auto factor_m = 1;
 
-  debug_output("Insert %lu elements; from blank? [%c]\n", size_batch,
-               "NY"[from_blank]);
+  spdlog::info("Insert {} elements; from blank? [{}]", size_batch, from_blank ? 'Y' : 'N');
 
-  // auto *pool = allocator.allocate(size_batch);
-  // first, query the nearest point as the starting point for each node to
-  // insert
+  // 1. Query the nearest point as the starting point for each node to insert
   if (from_blank) {
     auto offset = node_pool.size();
     node_pool.resize(offset + size_batch);
     parlay::parallel_for(0, size_batch, [&](uint32_t i) {
       const T &q = *(begin + i);
       const auto level_u = get_level_random();
-      // auto *const pu = &pool[i];		// TODO: add pointer manager
       node_id pu = offset + i;
 
       new (&get_node(pu))
@@ -792,16 +678,18 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
     });
   }
 
-  debug_output("Nodes are settled\n");
-  // TODO: merge ops
+  spdlog::info("Nodes are settled, node_pool size : {}", node_pool.size());
+
   parlay::parallel_for(0, size_batch, [&](uint32_t i) {
     auto &u = get_node(node_new[i]);
     const auto level_u = u.level;
     auto &eps_u = eps[i];
-    // eps_u.push_back(entrance);
     eps_u = entrance;
+
+    uint32_t ef_construction = 200; // DJY TODO
+
     for (uint32_t l = level_ep; l > level_u; --l) {
-      const auto res = search_layer(u, eps_u, 1, l);  // TODO: optimize
+      const auto res = search_layer(u, eps_u, ef_construction, l);  
       eps_u.clear();
       eps_u.push_back(res[0].u);
     }
@@ -823,36 +711,16 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
       auto &eps_u = eps[i];  // TODO: check
       auto res = search_layer(u, eps_u, ef_construction, l_c);
       auto neighbors_vec = select_neighbors(
-          u.data, res, get_threshold_m(l_c) /**factor_m*/, l_c);
-      // move the content from `neighbors_vec` to `u.neighbors[l_c]`
-      // auto &nbh_u = nbh_new[i];
+          u.data, res, get_threshold_m(l_c), l_c);
       auto &edge_u = edge_add[i];
-      // nbh_u.clear();
+
       edge_u.clear();
-      // nbh_u.reserve(neighbors_vec.size());
       edge_u.reserve(neighbors_vec.size());
-      /*
-      for(uint32_t j=0; neighbors_vec.size()>0; ++j)
-      {
-              auto *pv = neighbors_vec.top().u;
-              neighbors_vec.pop();
-              // nbh_u[j] = pv;
-              // edge_u[j] = std::make_pair(pv, &u);
-              nbh_u.push_back(pv);
-              edge_u.emplace_back(pv, &u);
-      }
-      */
+
       for (node_id pv : neighbors_vec) edge_u.emplace_back(pv, pu);
       nbh_new[i] = std::move(neighbors_vec);
 
       eps_u.clear();
-      /*
-      while(res.size()>0)
-      {
-              eps_u.push_back(res.top().u); // TODO: optimize
-              res.pop();
-      }
-      */
       eps_u.reserve(res.size());
       for (const auto e : res) eps_u.push_back(e.u);
     });
@@ -874,28 +742,17 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
       auto &nbh_v = neighbourhood(get_node(pv), l_c);
       auto &nbh_v_add = edge_add_grouped[j].second;
 
-      // std::unordered_set<node_id> hash_table(nbh_v.begin(),nbh_v.end());
-      /*
-      for(auto it=nbh_v_add.begin(); it!=nbh_v_add.end();)
-      {
-              bool is_extant = *it==pv||std::find_if(nbh_v.begin(), nbh_v.end(),
-      [&](const node_id pu_extant){ return *it==pu_extant;
-              })!=nbh_v.end();
-
-              // bool is_extant = hash_table.find(*it)!=hash_table.end();
-              it = is_extant? nbh_v_add.erase(it): std::next(it);
-      }
-      */
-
       const uint32_t size_nbh_total = nbh_v.size() + nbh_v_add.size();
 
       const auto m_s = get_threshold_m(l_c) * factor_m;
       if (size_nbh_total > m_s) {
         auto candidates = parlay::sequence<dist>(size_nbh_total);
-        for (size_t k = 0; k < nbh_v.size(); ++k)
+        for (size_t k = 0; k < nbh_v.size(); ++k) {
           candidates[k] =
               dist{U::distance(get_node(nbh_v[k]).data, get_node(pv).data, dim),
                    nbh_v[k]};
+          spdlog::info("distance {}", U::distance(get_node(nbh_v[k]).data, get_node(pv).data, dim));
+        } 
         for (size_t k = 0; k < nbh_v_add.size(); ++k)
           candidates[k + nbh_v.size()] = dist{
               U::distance(get_node(nbh_v_add[k]).data, get_node(pv).data, dim),
@@ -1023,8 +880,6 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
   using id_dist = std::pair<indexType, dtype>;
   int beamSize = QP.beamSize;
 
-  spdlog::info("Beam size {}", beamSize);
-
   if (eps.size() == 0) {
     spdlog::info("Beam search expects at least one start point");
     abort();
@@ -1047,7 +902,7 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
   std::vector<id_dist> frontier;
   frontier.reserve(beamSize);
 
-  spdlog::info("eps {}", eps.size());
+  spdlog::debug("eps {}", eps.size());
 
   for (auto q : eps) {
     frontier.push_back(id_dist(q, U::distance(get_node(q).data, u.data, dim)));
@@ -1081,7 +936,7 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
 
   int offset = 0;
 
-  spdlog::info("remain {}", remain);
+  spdlog::debug("remain {}", remain);
 
   while (remain > offset && num_visited < QP.limit) {
     id_dist current = unvisited_frontier[offset];
@@ -1640,8 +1495,31 @@ parlay::sequence<std::pair<uint32_t, float>> HNSW<U, Allocator>::search(
   res.reserve(R.size());
 
   for (const auto &e : R)
-    res.push_back({U::get_id(get_node(e.u).data), /* e.depth,*/ e.d});
+    res.push_back({U::get_id(get_node(e.u).data), e.d});
   return res;
+}
+
+template <typename U, template <typename> class Allocator>
+parlay::sequence<std::pair<uint32_t, float>> HNSW<U, Allocator>::search_exact(
+    const T &q, uint32_t k) {
+
+  parlay::sequence<std::pair<uint32_t, float>> results;
+  results.reserve(node_pool.size());
+
+  for (const auto &node : node_pool) {
+    float distance = U::distance(q, node.data, dim);
+    results.push_back({U::get_id(node.data), distance});
+  }
+
+  std::sort(results.begin(), results.end(), [](const auto &a, const auto &b) {
+    return a.second < b.second;  
+  });
+
+  if (results.size() > k) {
+    results.resize(k);
+  }
+
+  return results;
 }
 
 template <typename U, template <typename> class Allocator>
