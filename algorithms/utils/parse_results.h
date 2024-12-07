@@ -8,7 +8,7 @@
 #include "parlay/primitives.h"
 
 namespace parlayANN {
-  
+
 struct Graph_ {
   std::string name;
   std::string params;
@@ -143,8 +143,10 @@ struct nn_result {
   void print() {
     std::cout << "For " << gtn << "@" << gtn << " recall = " << recall
               << ", QPS = " << QPS << ", Q = " << beamQ << ", cut = " << cut;
-    std::cout << ", visited limit = " << limit << ", degree limit: " << degree_limit;
-    std::cout << ", average visited = " << avg_visited << ", average cmps = " << avg_cmps << std::endl;
+    std::cout << ", visited limit = " << limit
+              << ", degree limit: " << degree_limit;
+    std::cout << ", average visited = " << avg_visited
+              << ", average cmps = " << avg_cmps << std::endl;
   }
 
   void print_verbose() {
@@ -217,7 +219,6 @@ auto parse_result(parlay::sequence<res> results,
   return std::make_pair(retval, ret_buckets);
 }
 
-} // end namespace
+}  // namespace parlayANN
 
 #endif  // ALGORITHMS_UTILS_PARSE_RESULTS_H_
-

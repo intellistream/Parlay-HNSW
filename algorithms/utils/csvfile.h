@@ -112,4 +112,4 @@ inline static csvfile& flush(csvfile& file) {
   return file;
 }
 
-} // end namespace
+}  // namespace parlayANN

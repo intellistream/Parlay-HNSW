@@ -15,7 +15,6 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
-
 namespace efanna2e {
 
 // atomic_sum_counter<size_t> distance_calls;
@@ -59,12 +58,13 @@ class DistanceL2 : public Distance {
       AVX_L2SQR(l + 8, r + 8, sum, l1, r1);
     }
     _mm256_storeu_ps(unpack, sum);
-    result = unpack[0] + unpack[1] + unpack[2] + unpack[3] + unpack[4] + unpack[5] + unpack[6] + unpack[7];
+    result = unpack[0] + unpack[1] + unpack[2] + unpack[3] + unpack[4] +
+             unpack[5] + unpack[6] + unpack[7];
     for (unsigned i = aligned_size; i < size; ++i, ++l, ++r) {
       float diff = *l - *r;
       result += diff * diff;
     }
-    
+
     /*
 #else
 #ifdef __SSE2__
@@ -340,7 +340,5 @@ class DistanceFastL2 : public DistanceInnerProduct {
   }
 };
 }  // namespace efanna2e
-
-
 
 #endif  // EFANNA2E_DISTANCE_H

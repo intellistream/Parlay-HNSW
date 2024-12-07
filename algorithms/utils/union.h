@@ -2,6 +2,7 @@
 #define ALGORITHMS_ANN_UNION_
 
 #include <set>
+
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
@@ -10,8 +11,9 @@ namespace parlayANN {
 // takes in two sorted sequences and returns a sorted union
 // of length at most K, with a bool denoting whether P has changed
 template <typename F, typename T>
-std::pair<parlay::sequence<T>, bool> seq_union_bounded(
-    parlay::sequence<T>& P, parlay::sequence<T>& Q, int K, F&& less) {
+std::pair<parlay::sequence<T>, bool> seq_union_bounded(parlay::sequence<T>& P,
+                                                       parlay::sequence<T>& Q,
+                                                       int K, F&& less) {
   T* first1 = P.begin();
   T* last1 = P.end();
   T* first2 = Q.begin();
@@ -72,7 +74,8 @@ std::pair<parlay::sequence<T>, bool> seq_union_bounded(
 
 // takes in two sorted sequences and returns a sorted union
 template <typename F, typename T>
-parlay::sequence<T> seq_union(parlay::sequence<T>& P, parlay::sequence<T>& Q, F&& less) {
+parlay::sequence<T> seq_union(parlay::sequence<T>& P, parlay::sequence<T>& Q,
+                              F&& less) {
   T* first1 = P.begin();
   T* last1 = P.end();
   T* first2 = Q.begin();
@@ -115,6 +118,6 @@ parlay::sequence<T> seq_union(parlay::sequence<T>& P, parlay::sequence<T>& Q, F&
   return result;
 }
 
-} // end namespace
+}  // namespace parlayANN
 
-#endif // ALGORITHMS_ANN_UNION_
+#endif  // ALGORITHMS_ANN_UNION_

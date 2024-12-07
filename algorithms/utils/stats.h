@@ -27,7 +27,6 @@
 #include <set>
 
 #include "graph.h"
-
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
@@ -45,8 +44,8 @@ namespace parlayANN {
 // }
 
 std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
-  auto od = parlay::delayed_seq<size_t>(
-      G.size(), [&](size_t i) { return G[i].size(); });
+  auto od = parlay::delayed_seq<size_t>(G.size(),
+                                        [&](size_t i) { return G[i].size(); });
   size_t j = parlay::max_element(od) - od.begin();
   int maxDegree = od[j];
   size_t sum1 = parlay::reduce(od);
@@ -54,12 +53,11 @@ std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
   return std::make_pair(avg_deg, maxDegree);
 }
 
-template<typename indexType>
-struct stats{
-
+template <typename indexType>
+struct stats {
   stats() {}
-  
-  stats(size_t n){
+
+  stats(size_t n) {
     visited = parlay::sequence<indexType>(n, 0);
     distances = parlay::sequence<indexType>(n, 0);
   }
@@ -67,33 +65,33 @@ struct stats{
   parlay::sequence<indexType> visited;
   parlay::sequence<indexType> distances;
 
-  void increment_dist(indexType i, indexType j){
-    distances[i]+=j;}
-  void increment_visited(indexType i, indexType j){
-    visited[i]+=j;}
+  void increment_dist(indexType i, indexType j) { distances[i] += j; }
+  void increment_visited(indexType i, indexType j) { visited[i] += j; }
 
-  parlay::sequence<indexType> visited_stats(){return statistics(this->visited);}
-  parlay::sequence<indexType> dist_stats(){return statistics(this->distances);}
+  parlay::sequence<indexType> visited_stats() {
+    return statistics(this->visited);
+  }
+  parlay::sequence<indexType> dist_stats() {
+    return statistics(this->distances);
+  }
 
-  void clear(){
+  void clear() {
     size_t n = visited.size();
     visited = parlay::sequence<indexType>(n, 0);
     distances = parlay::sequence<indexType>(n, 0);
   }
 
-  parlay::sequence<indexType> statistics(parlay::sequence<indexType> s){
-    parlay::sequence<indexType> stats = parlay::tabulate(s.size(), [&](size_t i) { return s[i];});
+  parlay::sequence<indexType> statistics(parlay::sequence<indexType> s) {
+    parlay::sequence<indexType> stats =
+        parlay::tabulate(s.size(), [&](size_t i) { return s[i]; });
     parlay::sort_inplace(stats);
-    indexType avg= (int)parlay::reduce(stats) / ((double)s.size());
+    indexType avg = (int)parlay::reduce(stats) / ((double)s.size());
     indexType tail_index = .99 * ((float)s.size());
     indexType tail = stats[tail_index];
     auto result = {avg, tail};
     return result;
   }
-
 };
-
-
 
 // template <typename T>
 // auto query_stats(parlay::sequence<Tvec_point<T> *> &q) {
@@ -120,19 +118,20 @@ struct stats{
 // }
 
 // template <typename T>
-// parlay::sequence<size_t> visited_stats(parlay::sequence<Tvec_point<T> *> &q) {
+// parlay::sequence<size_t> visited_stats(parlay::sequence<Tvec_point<T> *> &q)
+// {
 //   auto visited_stats =
 //       parlay::tabulate(q.size(), [&](size_t i) { return q[i]->visited; });
 //   parlay::sort_inplace(visited_stats);
-//   size_t avg_visited = (int)parlay::reduce(visited_stats) / ((double)q.size());
-//   size_t tail_index = .99 * ((float)q.size());
-//   size_t tail_visited = visited_stats[tail_index];
-//   auto result = {avg_visited, tail_visited};
-//   return result;
+//   size_t avg_visited = (int)parlay::reduce(visited_stats) /
+//   ((double)q.size()); size_t tail_index = .99 * ((float)q.size()); size_t
+//   tail_visited = visited_stats[tail_index]; auto result = {avg_visited,
+//   tail_visited}; return result;
 // }
 
 // template <typename T>
-// parlay::sequence<size_t> distance_stats(parlay::sequence<Tvec_point<T> *> &q) {
+// parlay::sequence<size_t> distance_stats(parlay::sequence<Tvec_point<T> *> &q)
+// {
 //   auto dist_stats =
 //       parlay::tabulate(q.size(), [&](size_t i) { return q[i]->dist_calls; });
 //   parlay::sort_inplace(dist_stats);
@@ -170,16 +169,22 @@ struct stats{
 //   auto nonzero_sizes = (sizes).cut(first_nonzero_index, sizes.size());
 //   auto sizes_sum = parlay::reduce(nonzero_sizes);
 //   float avg =
-//       static_cast<float>(sizes_sum) / static_cast<float>(nonzero_sizes.size());
-//   std::cout << "Among nonzero entries, the average number of matches is " << avg
+//       static_cast<float>(sizes_sum) /
+//       static_cast<float>(nonzero_sizes.size());
+//   std::cout << "Among nonzero entries, the average number of matches is " <<
+//   avg
 //             << std::endl;
-//   std::cout << "25th percentile: " << nonzero_sizes[.25 * nonzero_sizes.size()]
+//   std::cout << "25th percentile: " << nonzero_sizes[.25 *
+//   nonzero_sizes.size()]
 //             << std::endl;
-//   std::cout << "75th percentile: " << nonzero_sizes[.75 * nonzero_sizes.size()]
+//   std::cout << "75th percentile: " << nonzero_sizes[.75 *
+//   nonzero_sizes.size()]
 //             << std::endl;
-//   std::cout << "99th percentile: " << nonzero_sizes[.99 * nonzero_sizes.size()]
+//   std::cout << "99th percentile: " << nonzero_sizes[.99 *
+//   nonzero_sizes.size()]
 //             << std::endl;
-//   std::cout << "Max: " << nonzero_sizes[nonzero_sizes.size() - 1] << std::endl;
+//   std::cout << "Max: " << nonzero_sizes[nonzero_sizes.size() - 1] <<
+//   std::endl;
 // }
 
 // template <typename T>
@@ -211,4 +216,4 @@ struct stats{
 //   }
 // }
 
-} // end namespace
+}  // namespace parlayANN

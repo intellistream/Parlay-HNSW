@@ -4,9 +4,9 @@
 #include <algorithm>
 #include <iostream>
 
+#include "parlay/internal/file_map.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-#include "parlay/internal/file_map.h"
 
 namespace parlayANN {
 
@@ -40,6 +40,6 @@ std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
   return std::make_pair(p, n);
 }
 
-} // end namespace
+}  // namespace parlayANN
 
-#endif // ANN_MMAP_H_
+#endif  // ANN_MMAP_H_

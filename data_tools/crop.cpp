@@ -1,13 +1,15 @@
-#include <iostream>
-#include <algorithm>
-#include "parlay/parallel.h"
-#include "parlay/primitives.h"
-#include "parlay/io.h"
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <algorithm>
+#include <iostream>
+
+#include "parlay/io.h"
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
 
 // using namespace benchIO;
 // *************************************************************
@@ -44,15 +46,15 @@ std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
   return std::make_pair(p, n);
 }
 
-template<typename T>
-void crop_file(char* iFile, int n, char* oFile){
+template <typename T>
+void crop_file(char* iFile, int n, char* oFile) {
   auto [fileptr, length] = mmapStringFromFile(iFile);
 
-  int dim = *((int*) (fileptr+4));
+  int dim = *((int*)(fileptr + 4));
   std::cout << "Writing " << n << " points with dimension " << dim << std::endl;
   parlay::sequence<int> preamble = {n, dim};
 
-  T* data = (T*)(fileptr+8);
+  T* data = (T*)(fileptr + 8);
   std::ofstream writer;
   writer.open(oFile, std::ios::binary | std::ios::out);
 
@@ -60,26 +62,29 @@ void crop_file(char* iFile, int n, char* oFile){
   bytes_to_write *= dim;
   bytes_to_write *= sizeof(T);
 
-  writer.write((char *)(preamble.begin()), 2*sizeof(int));
-  writer.write((char *) data, bytes_to_write);
+  writer.write((char*)(preamble.begin()), 2 * sizeof(int));
+  writer.write((char*)data, bytes_to_write);
   writer.close();
 }
 
 int main(int argc, char* argv[]) {
   if (argc != 5) {
-    std::cout << "usage: crop <base> <num_points_to_crop> <tp> <oF>" << std::endl;
+    std::cout << "usage: crop <base> <num_points_to_crop> <tp> <oF>"
+              << std::endl;
     return 1;
   }
-  
 
   int n = atoi(argv[2]);
 
   std::string tp = std::string(argv[3]);
 
-  if(tp == "float") crop_file<float>(argv[1], n, argv[4]);
-  else if(tp == "uint8") crop_file<uint8_t>(argv[1], n, argv[4]);
-  else if(tp == "int8") crop_file<int8_t>(argv[1], n, argv[4]);
-  else{
+  if (tp == "float")
+    crop_file<float>(argv[1], n, argv[4]);
+  else if (tp == "uint8")
+    crop_file<uint8_t>(argv[1], n, argv[4]);
+  else if (tp == "int8")
+    crop_file<int8_t>(argv[1], n, argv[4]);
+  else {
     std::cout << "Invalid type, specify float, uint8, or int8" << std::endl;
   }
 
