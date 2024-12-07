@@ -21,6 +21,18 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG        v1.11.0  # 替换为你需要的版本
+)
+
+FetchContent_GetProperties(spdlog)
+if (NOT spdlog_POPULATED)
+  FetchContent_Populate(spdlog)
+  add_subdirectory(${spdlog_SOURCE_DIR} ${spdlog_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
 # Set module path
 list(APPEND CMAKE_MODULE_PATH "${ParlayANN_SOURCE_DIR}/cmake")
 
@@ -31,7 +43,6 @@ target_include_directories(ParlayANN INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 add_subdirectory(algorithms)
-#add_subdirectory(data_tools)
-#add_subdirectory(range_search)
+
 
 

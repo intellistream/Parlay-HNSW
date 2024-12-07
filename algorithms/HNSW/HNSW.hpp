@@ -27,6 +27,7 @@
 #include <parlay/parallel.h>
 #include <parlay/primitives.h>
 #include <parlay/random.h>
+#include <spdlog/spdlog.h>
 
 #include "../utils/beamSearch.h"
 #include "debug.hpp"
@@ -1008,10 +1009,7 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
                                       uint32_t ef, uint32_t l_c,
                                       search_control ctrl) const {
   graph g(*this, l_c);
-  /*
-  dist_evaluator f_dist(u.data,dim);
-  return beamSearch<dist>(g, f_dist, eps, ef, ctrl);
-  */
+
   QueryParams QP(ef, ef, 1.35, ctrl.limit_eval.value_or(n),
                  get_threshold_m(l_c));
   auto points = parlay::delayed_seq<const T &>(
@@ -1025,8 +1023,10 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
   using id_dist = std::pair<indexType, dtype>;
   int beamSize = QP.beamSize;
 
+  spdlog::info("Beam size {}", beamSize);
+
   if (eps.size() == 0) {
-    std::cout << "beam search expects at least one start point" << std::endl;
+    spdlog::info("Beam search expects at least one start point");
     abort();
   }
 
@@ -1046,6 +1046,9 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
 
   std::vector<id_dist> frontier;
   frontier.reserve(beamSize);
+
+  spdlog::info("eps {}", eps.size());
+
   for (auto q : eps) {
     frontier.push_back(id_dist(q, U::distance(get_node(q).data, u.data, dim)));
     has_been_seen(q);
@@ -1077,6 +1080,8 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
   dtype filter_threshold;
 
   int offset = 0;
+
+  spdlog::info("remain {}", remain);
 
   while (remain > offset && num_visited < QP.limit) {
     id_dist current = unvisited_frontier[offset];
@@ -1169,15 +1174,8 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
          unvisited_frontier.begin());
   }
 
-  auto res = std::make_pair(std::make_pair(parlay::to_sequence(frontier),
-                                           parlay::to_sequence(visited)),
-                            full_dist_cmps);
-
-  const auto &pairElts = std::get<0>(res);
-  const auto &frontiers = std::get<0>(pairElts);
-  if (ctrl.count_cmps) *ctrl.count_cmps.value() += std::get<1>(res);
-  return parlay::tabulate(frontiers.size(), [&](size_t i) {
-    const auto &f = frontiers[i];
+  return parlay::tabulate(frontier.size(), [&](size_t i) {
+    const auto &f = frontier[i];
     return dist{f.second, f.first};
   });
 }
@@ -1587,20 +1585,6 @@ auto HNSW<U, Allocator>::beam_search_ex(const node &u,
   W.insert(W.end(), visited);
   return W;
 }
-/*
-template<typename U, template<typename> class Allocator>
-parlay::sequence<std::pair<uint32_t,float>> HNSW<U,Allocator>::search(const T
-&q, uint32_t k, uint32_t ef, search_control ctrl)
-{
-        auto res_ex = search_ex(q,k,ef,ctrl);
-        parlay::sequence<std::pair<uint32_t,float>> res;
-        res.reserve(res_ex.size());
-        for(const auto &e : res_ex)
-                res.emplace_back(std::get<0>(e), std::get<2>(e));
-
-        return res;
-}
-*/
 
 template <typename U, template <typename> class Allocator>
 parlay::sequence<typename HNSW<U, Allocator>::node_id>
@@ -1644,29 +1628,17 @@ parlay::sequence<std::pair<uint32_t, float>> HNSW<U, Allocator>::search(
   else
     eps = search_layer_to(u, 1, 0, ctrl);
   auto W_ex = search_layer(u, eps, ef, 0, ctrl);
-  // auto W_ex = search_layer_new_ex(u, eps, ef, 0, ctrl);
-  // auto W_ex = beam_search_ex(u, eps, ef, 0);
-  // auto R = select_neighbors_simple(q, W_ex, k);
 
   auto &R = W_ex;
-  if (!ctrl.radius && R.size() > k)  // the range search ignores the given k
+  if (R.size() > k)  // the range search ignores the given k
   {
     std::sort(R.begin(), R.end(), farthest());
-    if (k > 0)
-      k = std::upper_bound(R.begin() + k, R.end(), R[k - 1], farthest()) -
-          R.begin();
     R.resize(k);
   }
 
   parlay::sequence<std::pair<uint32_t, float>> res;
   res.reserve(R.size());
-  /*
-  while(W_ex.size()>0)
-  {
-          res.push_back({U::get_id(W_ex.top().get_node(u).data),
-  W_ex.top().depth, W_ex.top().d}); W_ex.pop();
-  }
-  */
+
   for (const auto &e : R)
     res.push_back({U::get_id(get_node(e.u).data), /* e.depth,*/ e.d});
   return res;
