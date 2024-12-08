@@ -42,6 +42,7 @@
 #include "../HNSW/HNSW.hpp"
 #include "../HNSW/dist.hpp"
 #include "../utils/euclidian_point.h"
+#include <spdlog/spdlog.h>
 
 using namespace parlayANN;
 
@@ -53,6 +54,8 @@ std::vector<descr_l2<float>::type_point> generate_random_points(size_t num_point
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(0.0f, 100.0f);  
 
+    static std::vector<std::vector<float>> all_coords(num_points, std::vector<float>(dimensions));
+
     std::vector<descr_l2<float>::type_point> points;
     points.reserve(num_points);
 
@@ -60,20 +63,19 @@ std::vector<descr_l2<float>::type_point> generate_random_points(size_t num_point
     {
         std::vector<float> coords(dimensions);
         for (size_t j = 0; j < dimensions; ++j)
-        {
+        {   all_coords[i][j] = dist(gen);
             coords[j] = dist(gen);
-            std::cout << coords[j] << " ";
         }
-        std::cout << std::endl;
 
-        point<float> p(i, coords.data());
+        point<float> p(i, all_coords[i].data());
         points.push_back(p);
     }
+
     return points;
 }
 
 void test() {
-  auto points = generate_random_points(200000, 3);
+  auto points = generate_random_points(100, 3);
 
 
   time_loop(1, 0,
@@ -88,7 +90,11 @@ void test() {
 }
 
 int main(int argc, char* argv[]) {
-  auto points = generate_random_points(10000, 3);
+  auto points = generate_random_points(200, 3);
+  for (auto v : points) {
+    auto *a = v.coord;
+    spdlog::info("start !!! {} {} {}", a[0], a[1], a[2]);
+  }
   auto hnsw = new ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), 3);
   std::cout << "Finished insertion" << std::endl;
   float coords1[] = {1.0f, 2.0f, 3.0f};

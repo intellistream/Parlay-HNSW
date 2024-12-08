@@ -617,8 +617,20 @@ HNSW<U, Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_,
                 typename std::iterator_traits<Iter>::iterator_category>);
 
   if (n == 0) return;
+  // spdlog::info("##################### {}", n);
+  // auto *t = get_node(batch_begin).data.coord;
+  // spdlog::info("idx {} test data: {} {} {}", batch_begin, t[0], t[1], t[2]);
+  // spdlog::info("===============================");
 
-  auto seq = parlay::delayed_seq<T>(n, [&](uint32_t i) { return *(begin + i); });
+  auto seq = parlay::delayed_seq<T>(n, [&](uint32_t i) { 
+    return *(begin + i); 
+  });
+
+  spdlog::info("#####################");
+  for (auto v : seq) {
+    auto *t = v.coord;
+    spdlog::info("vvvvvvvv data: {} {} {}", t[0], t[1], t[2]);
+  }
 
   const auto level_ep = get_level_random();
   node_pool.resize(1);
@@ -634,7 +646,8 @@ HNSW<U, Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_,
     batch_begin = batch_end;
     batch_end = std::min({n, (uint32_t)std::ceil(batch_begin * batch_base) + 1,
                           batch_begin + size_limit});
-
+    spdlog::info("Batch begin {}, batch end {}", batch_begin, batch_end);
+    spdlog::info("****************************");
     insert(seq.begin() + batch_begin, seq.begin() + batch_end, true);
 
     if (batch_end > n * (progress + 0.05)) {
@@ -655,6 +668,8 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
   auto nbh_new = std::make_unique<parlay::sequence<node_id>[]>(size_batch);
   auto eps = std::make_unique<parlay::sequence<node_id>[]>(size_batch);
 
+  spdlog::info("size batch {}", size_batch);
+
   const auto factor_m = 1;
 
   spdlog::info("Insert {} elements; from blank? [{}]", size_batch, from_blank ? 'Y' : 'N');
@@ -663,14 +678,17 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
   if (from_blank) {
     auto offset = node_pool.size();
     node_pool.resize(offset + size_batch);
+
     parlay::parallel_for(0, size_batch, [&](uint32_t i) {
       const T &q = *(begin + i);
       const auto level_u = get_level_random();
       node_id pu = offset + i;
-
       new (&get_node(pu))
           node{level_u, new parlay::sequence<node_id>[level_u + 1], q};
       node_new[i] = pu;
+      
+      auto *a = get_node(pu).data.coord;
+      spdlog::info("pu {} idx {} data: {} {} {}", pu, i, a[0], a[1], a[2]);
     });
   } else {
     parlay::parallel_for(0, size_batch, [&](uint32_t i) {
@@ -682,6 +700,10 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
 
   parlay::parallel_for(0, size_batch, [&](uint32_t i) {
     auto &u = get_node(node_new[i]);
+
+    auto *a = u.data.coord;
+    spdlog::info("new idx {} node {} {} {}", i, a[0], a[1], a[2]);
+
     const auto level_u = u.level;
     auto &eps_u = eps[i];
     eps_u = entrance;
@@ -697,7 +719,7 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
 
   debug_output("Finish searching entrances\n");
   // then we process them layer by layer (from high to low)
-  for (int32_t l_c = level_ep; l_c >= 0; --l_c)  // TODO: fix the type
+  for (int32_t l_c = level_ep; l_c >= 0; --l_c)  
   {
     parlay::sequence<parlay::sequence<std::pair<node_id, node_id>>> edge_add(
         size_batch);
@@ -708,7 +730,10 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
       auto &u = get_node(pu);
       if ((uint32_t)l_c > u.level) return;
 
-      auto &eps_u = eps[i];  // TODO: check
+      auto &eps_u = eps[i];  
+
+      // spdlog::info("EPS-U SIZE {} EPS INDEX {}", eps_u.size(), i);
+
       auto res = search_layer(u, eps_u, ef_construction, l_c);
       auto neighbors_vec = select_neighbors(
           u.data, res, get_threshold_m(l_c), l_c);
@@ -751,7 +776,7 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
           candidates[k] =
               dist{U::distance(get_node(nbh_v[k]).data, get_node(pv).data, dim),
                    nbh_v[k]};
-          spdlog::info("distance {}", U::distance(get_node(nbh_v[k]).data, get_node(pv).data, dim));
+          // spdlog::info("distance {}", U::distance(get_node(nbh_v[k]).data, get_node(pv).data, dim));
         } 
         for (size_t k = 0; k < nbh_v_add.size(); ++k)
           candidates[k + nbh_v.size()] = dist{
@@ -762,13 +787,6 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
 
         nbh_v.resize(m_s);
         for (size_t k = 0; k < m_s; ++k) nbh_v[k] = candidates[k].u;
-        /*
-        auto res = select_neighbors(get_node(pv).data, candidates, m_s, l_c);
-        nbh_v.clear();
-        for(auto *pu : res)
-                nbh_v.push_back(pu);
-        */
-        // nbh_v = select_neighbors(get_node(pv).data, candidates, m_s, l_c);
       } else
         nbh_v.insert(nbh_v.end(), nbh_v_add.begin(), nbh_v_add.end());
     });
@@ -885,6 +903,8 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
     abort();
   }
 
+
+
   using distanceType = float;
   auto less = [&](id_dist a, id_dist b) {
     return a.second < b.second || (a.second == b.second && a.first < b.first);
@@ -902,9 +922,8 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
   std::vector<id_dist> frontier;
   frontier.reserve(beamSize);
 
-  spdlog::debug("eps {}", eps.size());
-
   for (auto q : eps) {
+    const auto *uc = get_node(q).data.coord;
     frontier.push_back(id_dist(q, U::distance(get_node(q).data, u.data, dim)));
     has_been_seen(q);
   }
@@ -935,8 +954,6 @@ auto HNSW<U, Allocator>::search_layer(const node &u,
   dtype filter_threshold;
 
   int offset = 0;
-
-  spdlog::debug("remain {}", remain);
 
   while (remain > offset && num_visited < QP.limit) {
     id_dist current = unvisited_frontier[offset];
@@ -1455,13 +1472,6 @@ HNSW<U, Allocator>::search_layer_to(const node &u, uint32_t ef, uint32_t l_stop,
     const auto W = search_layer(u, eps, ef, l_c, c);
     eps.clear();
     eps.push_back(W[0].u);
-    /*
-    while(!W.empty())
-    {
-            eps.push_back(W.top().u);
-            W.pop();
-    }
-    */
   }
   return eps;
 }

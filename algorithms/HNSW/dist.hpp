@@ -77,7 +77,6 @@ class descr_l2 {
       const auto *uc = u.coord, *vc = v.coord;
       efanna2e::DistanceL2 distfunc;
       auto dist = distfunc.compare(uc, vc, dim);
-      spdlog::info("&&&&&&&&& {}", dist);
       return dist;
       // return distfunc.compare(uc, vc, dim);
     }

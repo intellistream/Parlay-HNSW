@@ -86,8 +86,8 @@ class DistanceL2 : public Distance {
       diff0 = *a++ - *b++;
       result += diff0 * diff0;
     }
-    std::cout << "a " << *a << "b "<< *b << std::endl;
-    std::cout << "DIST ----- " << result << std::endl;
+    // std::cout << "a " << *a << "b "<< *b << std::endl;
+    // std::cout << "DIST ----- " << result << std::endl;
 #endif 
 #endif
 
