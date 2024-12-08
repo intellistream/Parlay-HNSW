@@ -52,7 +52,7 @@ std::vector<descr_l2<float>::type_point> generate_random_points(size_t num_point
 {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dist(0.0f, 100.0f);  
+    std::uniform_real_distribution<float> dist(0.0f, 100.0f);
 
     static std::vector<std::vector<float>> all_coords(num_points, std::vector<float>(dimensions));
 
@@ -75,41 +75,41 @@ std::vector<descr_l2<float>::type_point> generate_random_points(size_t num_point
 }
 
 void test() {
-  auto points = generate_random_points(100, 3);
+    auto points = generate_random_points(100, 3);
 
 
-  time_loop(1, 0,
+    time_loop(1, 0,
     [&] () {},
     [&] () {
-      // ANN::HNSW<descr_l2<float>>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
-      ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), 3);
-      // ANN::HNSW<Point>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
+        // ANN::HNSW<descr_l2<float>>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
+        ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), 3);
+        // ANN::HNSW<Point>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
     },
     [&] () {});
 
 }
 
 int main(int argc, char* argv[]) {
-  auto points = generate_random_points(200, 3);
-  for (auto v : points) {
-    auto *a = v.coord;
-    spdlog::info("start !!! {} {} {}", a[0], a[1], a[2]);
-  }
-  auto hnsw = new ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), 3);
-  std::cout << "Finished insertion" << std::endl;
-  float coords1[] = {1.0f, 2.0f, 3.0f};
-  point<float> point1{1, coords1};
-  search_control ctrl{};
-  auto res = hnsw->search(point1, 10, 50, ctrl);
-  std::cout << "-----------" << std::endl;
-  std::cout << res.size() << std::endl;
-  for (auto r : res) {
-    spdlog::info("id {} dist {}", r.first, r.second);
-  }
-  std::cout << "********" << std::endl;
-  auto res1 = hnsw->search_exact(point1, 10);
-  for (auto r : res1) {
-    spdlog::info("id {} dist {}", r.first, r.second);
-  }
-  return 0;
+    auto points = generate_random_points(200, 3);
+    for (auto v : points) {
+        auto *a = v.coord;
+        spdlog::info("start !!! {} {} {}", a[0], a[1], a[2]);
+    }
+    auto hnsw = new ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), 3);
+    std::cout << "Finished insertion" << std::endl;
+    float coords1[] = {1.0f, 2.0f, 3.0f};
+    point<float> point1{1, coords1};
+    search_control ctrl{};
+    auto res = hnsw->search(point1, 10, 50, ctrl);
+    std::cout << "-----------" << std::endl;
+    std::cout << res.size() << std::endl;
+    for (auto r : res) {
+        spdlog::info("id {} dist {}", r.first, r.second);
+    }
+    std::cout << "********" << std::endl;
+    auto res1 = hnsw->search_exact(point1, 10);
+    for (auto r : res1) {
+        spdlog::info("id {} dist {}", r.first, r.second);
+    }
+    return 0;
 }

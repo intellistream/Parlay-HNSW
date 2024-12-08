@@ -11,24 +11,24 @@ using uintT = unsigned int;
 namespace utils {
 
 static void myAssert(int cond, std::string s) {
-  if (!cond) {
-    std::cout << s << std::endl;
-    abort();
-  }
+    if (!cond) {
+        std::cout << s << std::endl;
+        abort();
+    }
 }
 
 inline unsigned int hash(unsigned int a) {
-  a = (a + 0x7ed55d16) + (a << 12);
-  a = (a ^ 0xc761c23c) ^ (a >> 19);
-  a = (a + 0x165667b1) + (a << 5);
-  a = (a + 0xd3a2646c) ^ (a << 9);
-  a = (a + 0xfd7046c5) + (a << 3);
-  a = (a ^ 0xb55a4f09) ^ (a >> 16);
-  return a;
+    a = (a + 0x7ed55d16) + (a << 12);
+    a = (a ^ 0xc761c23c) ^ (a >> 19);
+    a = (a + 0x165667b1) + (a << 5);
+    a = (a + 0xd3a2646c) ^ (a << 9);
+    a = (a + 0xfd7046c5) + (a << 3);
+    a = (a ^ 0xb55a4f09) ^ (a >> 16);
+    return a;
 }
 
 inline int hashInt(unsigned int a) {
-  return hash(a) & (((unsigned)1 << 31) - 1);
+    return hash(a) & (((unsigned)1 << 31) - 1);
 }
 
 // template <class E>
@@ -108,17 +108,17 @@ T hash(intT i);
 
 template <>
 inline intT hash<intT>(intT i) {
-  return utils::hash(i) & (HASH_MAX_INT - 1);
+    return utils::hash(i) & (HASH_MAX_INT - 1);
 }
 
 template <>
 inline uintT hash<uintT>(intT i) {
-  return utils::hash(i);
+    return utils::hash(i);
 }
 
 template <>
 inline double hash<double>(intT i) {
-  return ((double)hash<intT>(i) / ((double)HASH_MAX_INT));
+    return ((double)hash<intT>(i) / ((double)HASH_MAX_INT));
 }
 
 };  // namespace dataGen
