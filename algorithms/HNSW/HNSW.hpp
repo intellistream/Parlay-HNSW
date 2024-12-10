@@ -650,12 +650,6 @@ HNSW<U, Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_,
         return *(begin + i);
     });
 
-    spdlog::info("#####################");
-    for (auto v : seq) {
-        auto *t = v.coord;
-        spdlog::info("vvvvvvvv data: {} {} {}", t[0], t[1], t[2]);
-    }
-
     const auto level_ep = get_level_random();
     node_pool.resize(1);
     node_id entrance_init = 0;
@@ -711,8 +705,8 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
             node{level_u, new parlay::sequence<node_id>[level_u + 1], q};
             node_new[i] = pu;
 
-            auto *a = get_node(pu).data.coord;
-            spdlog::info("pu {} idx {} data: {} {} {}", pu, i, a[0], a[1], a[2]);
+            // auto *a = get_node(pu).data.coord;
+            // spdlog::info("pu {} idx {} data: {} {} {}", pu, i, a[0], a[1], a[2]);
         });
     } else {
         parlay::parallel_for(0, size_batch, [&](uint32_t i) {
@@ -726,7 +720,7 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
         auto &u = get_node(node_new[i]);
 
         auto *a = u.data.coord;
-        spdlog::info("new idx {} node {} {} {}", i, a[0], a[1], a[2]);
+        // spdlog::info("new idx {} node {} {} {}", i, a[0], a[1], a[2]);
 
         const auto level_u = u.level;
         auto &eps_u = eps[i];
