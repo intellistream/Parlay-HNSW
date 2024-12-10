@@ -10,9 +10,9 @@
 template <typename T>
 class descr_ang {
   using promoted_type =
-      std::conditional_t<std::is_integral_v<T> && sizeof(T) <= 4,
-                         std::conditional_t<sizeof(T) == 4, int64_t, int32_t>,
-                         float>;
+    std::conditional_t<std::is_integral_v<T> && sizeof(T) <= 4,
+    std::conditional_t<sizeof(T) == 4, int64_t, int32_t>,
+    float>;
 
  public:
   typedef T type_elem;
@@ -29,15 +29,17 @@ class descr_ang {
     return 1 - dot / (sqrtf(nu) * sqrtf(nv));
   }
 
-  static auto get_id(const type_point &u) { return u.id; }
+  static auto get_id(const type_point &u) {
+    return u.id;
+  }
 };
 
 template <typename T>
 class descr_ndot {
   using promoted_type =
-      std::conditional_t<std::is_integral_v<T> && sizeof(T) <= 4,
-                         std::conditional_t<sizeof(T) == 4, int64_t, int32_t>,
-                         float>;
+    std::conditional_t<std::is_integral_v<T> && sizeof(T) <= 4,
+    std::conditional_t<sizeof(T) == 4, int64_t, int32_t>,
+    float>;
 
  public:
   typedef T type_elem;
@@ -50,15 +52,17 @@ class descr_ndot {
     return -float(dot);
   }
 
-  static auto get_id(const type_point &u) { return u.id; }
+  static auto get_id(const type_point &u) {
+    return u.id;
+  }
 };
 
 template <typename T>
 class descr_l2 {
   using promoted_type =
-      std::conditional_t<std::is_integral_v<T> && sizeof(T) <= 4,
-                         std::conditional_t<sizeof(T) == 4, int64_t, int32_t>,
-                         float>;
+    std::conditional_t<std::is_integral_v<T> && sizeof(T) <= 4,
+    std::conditional_t<sizeof(T) == 4, int64_t, int32_t>,
+    float>;
 
  public:
   typedef T type_elem;
@@ -76,14 +80,14 @@ class descr_l2 {
     } else {
       const auto *uc = u.coord, *vc = v.coord;
       efanna2e::DistanceL2 distfunc;
-      auto dist = distfunc.compare(uc, vc, dim);
-      return dist;
-      // return distfunc.compare(uc, vc, dim);
+      return distfunc.compare(uc, vc, dim);
     }
     std::cout << std::endl;
   }
 
-  static auto get_id(const type_point &u) { return u.id; }
+  static auto get_id(const type_point &u) {
+    return u.id;
+  }
 };
 
 #endif  // __DIST_HPP__
