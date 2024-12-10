@@ -705,8 +705,8 @@ void HNSW<U, Allocator>::insert(Iter begin, Iter end, bool from_blank) {
             node{level_u, new parlay::sequence<node_id>[level_u + 1], q};
             node_new[i] = pu;
 
-            auto *a = get_node(pu).data.coord;
-            spdlog::info("pu {} idx {} data: {} {} {}", pu, i, a[0], a[1], a[2]);
+            // auto *a = get_node(pu).data.coord;
+            // spdlog::info("pu {} idx {} data: {} {} {}", pu, i, a[0], a[1], a[2]);
         });
     } else {
         parlay::parallel_for(0, size_batch, [&](uint32_t i) {
