@@ -1,6 +1,6 @@
 # Parlay-HNSW
 
-Refer to the ParlayANN(https://github.com/cmuparlay/ParlayANN) implementation to create a HNSW.
+Refer to the ParlayANN (https://github.com/cmuparlay/ParlayANN) implementation to create a HNSW.
 
 ## Init third-party
 ```bash
