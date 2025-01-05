@@ -24,5 +24,5 @@ cmake .. && make
 ## Run HNSW
 ```bash
 cd algorithm/HNSW
-./bench-hnsw -data_type float -dist_func l2 -base_file ../../../data/sift/sift_base.ifvecs
+/bench-hnsw -data_type float -dist_func l2 -k 5 -file_path  ../../data/sift/sift_base.fvecs
 ```
