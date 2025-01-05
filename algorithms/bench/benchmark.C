@@ -56,13 +56,13 @@ void read_ifvecs(const std::string& filename,
                  uint32_t& dim) {
   std::ifstream file(filename, std::ios::binary);
   if (!file) {
+    std::cout << "error !" << std::endl;
     throw std::runtime_error("Failed to open file: " + filename);
   }
 
   uint32_t id = 0;
   int32_t vector_dim = 0;
 
-  // 用于保存所有点的外部容器，保证生命周期
   static std::vector<std::vector<T>> all_coords;
 
   while (file.peek() != EOF) {
@@ -120,12 +120,16 @@ std::vector<point<T>> get_random_points(const std::vector<point<T>>& points, siz
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,
                 "[-data_type <data_type>] [-dist_func <dist_func>]"
-                "[-k <k> ] [-query_size <query_size>] [-file_path <base_path>]");
+                "[-k <k> ] [-file_path <base_path>]");
 
   char* data_type = P.getOptionValue("-data_type");
   char* dist_func = P.getOptionValue("-dist_func");
-  char* base_path = P.getOptionValue("-base_path");
+  char* file_path = P.getOptionValue("-file_path");
   int k = P.getOptionIntValue("-k", 5);
+
+      std::cout << "Data type: " << data_type << "\n"
+              << "Distance function: " << dist_func << "\n"
+              << "Base file: " << file_path << std::endl;
 
   std::string df = std::string(dist_func);
   std::string dt = std::string(data_type);
@@ -134,7 +138,7 @@ int main(int argc, char* argv[]) {
     std::vector<descr_l2<float>::type_point> points;
     std::vector<descr_l2<float>::type_point> qpoints;
     uint32_t dim = 0;
-    read_ifvecs(base_path, points, qpoints, dim);
+    read_ifvecs(file_path, points, qpoints, dim);
 
     time_loop(1, 0,
     [&] () {},
