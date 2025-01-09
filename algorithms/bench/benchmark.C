@@ -120,12 +120,14 @@ std::vector<point<T>> get_random_points(const std::vector<point<T>>& points, siz
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,
                 "[-data_type <data_type>] [-dist_func <dist_func>]"
-                "[-k <k> ] [-file_path <base_path>]");
+                "[-k <k> ] [-n <n>] [-file_path <base_path>]");
 
   char* data_type = P.getOptionValue("-data_type");
   char* dist_func = P.getOptionValue("-dist_func");
   char* file_path = P.getOptionValue("-file_path");
   int k = P.getOptionIntValue("-k", 5);
+  int n = P.getOptionIntValue("-n", 100000);
+  int query_n = P.getOptionIntValue("-query_n", 10);
 
       std::cout << "Data type: " << data_type << "\n"
               << "Distance function: " << dist_func << "\n"
@@ -139,6 +141,12 @@ int main(int argc, char* argv[]) {
     std::vector<descr_l2<float>::type_point> qpoints;
     uint32_t dim = 0;
     read_ifvecs(file_path, points, qpoints, dim);
+
+    if (n != -1)
+      points.resize(n);
+
+    if (query_n != -1)
+      qpoints.resize(query_n);
 
     time_loop(1, 0,
     [&] () {},
