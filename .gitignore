@@ -1,3 +1,5 @@
 build/
 data/
 parlaylib/
+.vscode/
+data_tools/

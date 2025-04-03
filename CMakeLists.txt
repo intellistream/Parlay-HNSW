@@ -24,7 +24,7 @@ endif()
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG        v1.11.0  # 替换为你需要的版本
+  GIT_TAG        v1.11.0  
 )
 
 FetchContent_GetProperties(spdlog)
@@ -43,6 +43,6 @@ target_include_directories(ParlayANN INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 add_subdirectory(algorithms)
-
+# add_subdirectory(data_tools)
 
 
