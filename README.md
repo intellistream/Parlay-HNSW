@@ -18,7 +18,7 @@ tar -xf sift.tar.gz
 ## Build
 ```bash
 mkdir build && cd build
-cmake .. && make 
+cmake .. && make -j$(nproc)
 ```
 
 ## Run HNSW
