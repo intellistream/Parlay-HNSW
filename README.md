@@ -17,6 +17,7 @@ tar -xf sift.tar.gz
 
 ## Build
 ```bash
+cd path/to/repo
 mkdir build && cd build
 cmake .. && make -j$(nproc)
 ```
