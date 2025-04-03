@@ -39,6 +39,9 @@
 #include <unistd.h>
 #include <fstream>
 #include <memory>
+#include <cstdlib>
+#include <thread>
+#include <chrono>
 
 #include "../HNSW/HNSW.hpp"
 #include "../HNSW/dist.hpp"
@@ -50,140 +53,57 @@ using namespace parlayANN;
 using uint = unsigned int;
 
 template <typename T>
-void read_ifvecs(const std::string& filename, 
-                 std::vector<point<T>>& all_points, 
-                 std::vector<point<T>>& random_points, 
-                 uint32_t& dim) {
-  std::ifstream file(filename, std::ios::binary);
-  if (!file) {
-    std::cout << "error !" << std::endl;
-    throw std::runtime_error("Failed to open file: " + filename);
+void bench(commandLine& P) {
+  char* dist_func = P.getOptionValue("-dist_func");
+  char* data_path = P.getOptionValue("-data_path");
+  char* query_path = P.getOptionValue("-query_path");
+  int k = P.getOptionIntValue("-k", 10);
+  int n = P.getOptionIntValue("-n", 1000000);
+  int t = P.getOptionIntValue("-t", std::thread::hardware_concurrency());
+  int query_n = P.getOptionIntValue("-query_n", 100);
+
+  setenv("PARLAY_NUM_THREADS", std::to_string(t).c_str(), 1);
+
+  std::cout << "Data type: " << data_type << "\n"
+          << "Threads: " << t << "\n"
+          << "Data file: " << data_path << "\n"
+          << "Query file: " << query_path << std::endl;
+  
+  PointRange<Euclidian_Point<int8_t>> Points(data_path);
+  PointRange<Euclidian_Point<int8_t>> Query_Points(query_path);
+
+  auto start = std::chrono::high_resolution_clock::now();
+  auto hnsw = new ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), dim);
+
+  float total_recall = 0.0;
+  search_control ctrl{};
+  for (auto qp : qpoints) {
+    auto res = hnsw->search(qp, k, 50, ctrl);
   }
+  
+  spdlog::info("Overall recall {}", total_recall / qpoints.size());
 
-  uint32_t id = 0;
-  int32_t vector_dim = 0;
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = end - start; 
 
-  static std::vector<std::vector<T>> all_coords;
-
-  while (file.peek() != EOF) {
-    if (vector_dim == 0) {
-      file.read(reinterpret_cast<char*>(&vector_dim), sizeof(int32_t));
-      if (vector_dim <= 0) {
-        throw std::runtime_error("Invalid vector dimension in file.");
-      }
-      dim = static_cast<uint32_t>(vector_dim);
-      all_coords.reserve(1000000); 
-    } else {
-      int32_t temp_dim;
-      file.read(reinterpret_cast<char*>(&temp_dim), sizeof(int32_t));
-      if (temp_dim != vector_dim) {
-        throw std::runtime_error("Inconsistent vector dimensions in file.");
-      }
-    }
-
-    std::vector<T> coords(vector_dim);
-    file.read(reinterpret_cast<char*>(coords.data()), vector_dim * sizeof(T));
-
-    all_coords.emplace_back(std::move(coords));
-
-    all_points.push_back(point<T>(id++, all_coords.back().data()));
-  }
-
-  if (all_points.size() > 500) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-
-    std::sample(all_points.begin(), all_points.end(), 
-                std::back_inserter(random_points), 500, gen);
-  } else {
-    random_points = all_points;
-  }
-
-  spdlog::info("{} loaded, dimension : {}, total points: {}, random points: {}", 
-               filename, dim, all_points.size(), random_points.size());
-}
-
-template <typename T>
-std::vector<point<T>> get_random_points(const std::vector<point<T>>& points, size_t sample_size) {
-  if (sample_size > points.size()) {
-      throw std::invalid_argument("Sample size exceeds the number of available points.");
-  }
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::vector<point<T>> sample;
-  std::sample(points.begin(), points.end(), std::back_inserter(sample), sample_size, gen);
-
-  return sample;
+  double qps = static_cast<double>(points.size()) / duration.count();
+  std::cout << "Total queries: " << points.size() << "\n"
+            << "Total time: " << duration.count() << " seconds\n"
+            << "QPS: " << qps << " queries per second" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,
-                "[-data_type <data_type>] [-dist_func <dist_func>]"
-                "[-k <k> ] [-n <n>] [-file_path <base_path>]");
+                "[-data_type <data_type>] [-k <k> ] [-n <n>] [-t <t>]" 
+                "[-data_path <data_path>] [-query_path <query_path>]");
 
   char* data_type = P.getOptionValue("-data_type");
-  char* dist_func = P.getOptionValue("-dist_func");
-  char* file_path = P.getOptionValue("-file_path");
-  int k = P.getOptionIntValue("-k", 5);
-  int n = P.getOptionIntValue("-n", 100000);
-  int query_n = P.getOptionIntValue("-query_n", 10);
-
-      std::cout << "Data type: " << data_type << "\n"
-              << "Distance function: " << dist_func << "\n"
-              << "Base file: " << file_path << std::endl;
-
-  std::string df = std::string(dist_func);
-  std::string dt = std::string(data_type);
-
-  if (dt == "float") {
-    std::vector<descr_l2<float>::type_point> points;
-    std::vector<descr_l2<float>::type_point> qpoints;
-    uint32_t dim = 0;
-    read_ifvecs(file_path, points, qpoints, dim);
-
-    if (n != -1)
-      points.resize(n);
-
-    if (query_n != -1)
-      qpoints.resize(query_n);
-
-    time_loop(1, 0,
-    [&] () {},
-    [&] () {
-      auto hnsw = new ANN::HNSW<descr_l2<float>>(points.begin(), points.end(), dim);
-
-      float total_recall = 0.0;
-      search_control ctrl{};
-      for (auto qp : qpoints) {
-        search_control ctrl{};
-        auto res = hnsw->search(qp, k, 50, ctrl);
-        auto exact_res = hnsw->search_exact(qp, k);
-       
-        std::set<int> exact_ids;
-        for (const auto& pair : exact_res) {
-          exact_ids.insert(pair.first); 
-        }
-
-        size_t hits = 0;
-        for (const auto& pair : res) {
-          if (exact_ids.find(pair.first) != exact_ids.end()) {
-            ++hits;  
-          }
-        }
-
-        float recall = static_cast<float>(hits) / exact_ids.size();
-        total_recall += recall;
-      }
-      
-      spdlog::info("Overall recall {}", total_recall / qpoints.size());
-    },
-    [&] () {});
-
-  } else if (dt == "uint8") {
-
-  } else if (dt == "int8") {
-
+  if (strcmp(data_type, "float") == 0) {
+    bench<float>(P);
+  } else if (strcmp(data_type, "uint8_t") == 0) {
+    bench<uint8_t>(P);
+  } else if (strcmp(data_type, "int8_t") == 0) {
+    bench<int8_t>(P);
   }
 
   return 0;
